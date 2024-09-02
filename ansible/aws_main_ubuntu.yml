@@ -1,0 +1,11 @@
+---
+
+- hosts: all
+  name: Ubuntu22
+  gather_facts: True
+  any_errors_fatal: true
+  become: yes
+
+  roles:
+    - role: ./ubuntu22
+      when: ansible_system == 'Linux' and ansible_os_family == "Debian"

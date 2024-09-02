@@ -1,0 +1,90 @@
+---
+
+  - name: Ensure old versions of Docker are not installed.
+    package:
+      name:
+        - docker-ce
+      state: absent
+
+  - name: Add Docker GPG apt Key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+      state: present
+      filename: docker-official
+
+  - name: Update apt and install docker-ce
+    apt:
+      name: docker-ce
+      state: latest
+      update_cache: true
+
+  - name: Docker version
+    shell: docker -v
+    register: d_version_status
+
+  - debug:
+      msg: "{{ d_version_status.stdout}}"
+
+  - name: Ensure Docker is started and enabled at boot.
+    service:
+      name: docker
+      state: started
+      enabled: true
+
+  - name: Get docker-compose latest version info
+    uri:
+      url: https://api.github.com/repos/docker/compose/releases/latest
+      method: GET
+      return_content: yes
+    register: docker_latest_version_info
+
+  - name: Set latest version as fact
+    set_fact:
+      docker_compose_version: "{{ (docker_latest_version_info.content|from_json).tag_name }}"
+    when: docker_compose_version == "latest"
+
+  - name: Check docker-compose file
+    stat: path="{{ docker_compose_bin }}/docker-compose"
+    register: st
+
+  - name: Check Docker Compose version
+    shell: docker-compose --version | grep "version {{ docker_compose_version }}"
+    register: docker_compose_ver
+    when: st.stat.exists
+    failed_when: false
+    changed_when: false
+
+  - name: Remove Old Version
+    file: state=absent path="/bin/docker-compose"
+    when: st.stat.exists
+
+  - name: Set install url as fact unless testing
+    set_fact:
+      docker_compose_install_url: "{{ docker_compose_release_url }}/{{ docker_compose_version }}/docker-compose-{{ docker_compose_arch }}"
+
+  - name: Install Docker Compose
+    get_url:
+      url: "{{ docker_compose_install_url }}"
+      dest: "{{ docker_compose_bin }}/docker-compose"
+      mode: "755"
+
+  - name: Add user to docker group
+    shell: usermod -aG docker {{ cicd_user }}
+  
+  - name: Give permissions for docker.sock
+    file:
+      path: /var/run/docker.sock
+      mode: '666'
+      
+  - name: Docker-compose version
+    shell: docker-compose --version
+    register: version_status
+
+  - debug:
+      msg: "{{ version_status.stdout}}"
+

@@ -1,0 +1,111 @@
+---
+  - name:  Check if swap file exist in fstab
+    shell: cat /etc/fstab
+    register: swap_show
+
+  - debug:
+      var: swap_show
+
+  - name: Check whether "/swapfile" exists in system
+    register: check_swap
+    stat:
+      path: /swapfile
+
+  - set_fact:
+      existing_swapfile_size: "{{ check_swap.stat.size }}"
+    when: check_swap.stat.exists == true
+
+  - set_fact:
+      new_swapfile_size: "{{ swap_size | human_to_bytes }}"
+
+  - name: Create swap file
+    block:
+      - name: Delete existing swap file 
+        block: 
+          - name: disable existing swap file
+            shell:  sudo swapoff -a; sudo rm -rf /swapfile
+          - name: Remove existing /swapfile
+            file:
+              path: /swapfile
+              state: absent
+        rescue:
+          - name: Print when errors
+            debug:
+              msg: I caught an error
+        when: check_swap.stat.exists == true
+
+      - name:  Create new swap file "{{ swap_size }}".
+        shell: fallocate -l "{{ swap_size }}" /swapfile
+
+      - name: Set permissions for swap file 600, user - root, group - root
+        file:
+          path: /swapfile
+          owner: root
+          group: root
+          mode: '0600'
+
+      - name:  Mark the file as swap space by typing.
+        shell: mkswap /swapfile
+
+      - name: enable the swap file, allowing our system to start using it.
+        shell: swapon /swapfile
+
+      - name: Verify that the swap is available by typing.
+        shell:  swapon --show | awk {'print $3'} | tail -n1
+        register: check_swapon
+
+      - debug:
+          var: check_swapon
+
+      - name: Add record to fstab file
+        block:
+          - name: Create backup for fstab file
+            copy:
+              src: /etc/fstab
+              dest: /etc/fstab.bak1
+              owner: root
+              group: root
+              mode: '0640'
+
+          - name: Add the swap file information to the end of fstab file
+            lineinfile:
+              path: /etc/fstab
+              line: '{{ item }}'
+              insertafter: EOF
+            with_items:
+              - /swapfile none swap sw 0 0
+
+          - name: Add the sysctl.conf file vm.swappiness and vm.vfs_cache_pressure
+            lineinfile:
+              path: /etc/sysctl.conf
+              line: '{{ item }}'
+              insertafter: EOF
+            with_items:
+              - vm.swappiness=10
+              - vm.vfs_cache_pressure = 50
+              - vm.overcommit_memory = 1
+
+          - name: restart the server
+            shell: sleep 2 && shutdown -r now "Ansible reboot"
+            async: 1
+            poll: 0
+            become: yes
+            become_method: sudo
+            ignore_errors: true
+
+          - name: wait for the server to come back
+            wait_for_connection:
+              delay: 20
+              timeout: 300
+
+        rescue:
+          - name: Print when errors
+            debug:
+              msg: I caught an error
+        when: swap_show.stdout.find('swap') == -1
+
+    rescue:
+      - name: Print when errors
+        debug:
+          msg: I caught an error
+    when: check_swap.stat.exists == false or existing_swapfile_size != new_swapfile_size

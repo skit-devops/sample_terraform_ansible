@@ -1,0 +1,10 @@
+---
+# defaults file for aws_redis201_server
+
+aws_download_url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+aws_profile: default
+
+docker_compose_arch: linux-x86_64
+docker_compose_version: latest
+docker_compose_release_url: https://github.com/docker/compose/releases/download
+docker_compose_bin: /usr/local/bin

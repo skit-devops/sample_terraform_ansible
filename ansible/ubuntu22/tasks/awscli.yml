@@ -1,0 +1,58 @@
+---
+
+  - name: Check that awscli exists
+    stat:
+      path: /usr/local/bin/aws
+    register: aws_cli
+
+  - name: Install awscli
+    block:
+      - name: Download awscli archive to /tmp folder
+        get_url:
+          url: "{{ aws_download_url }}"
+          dest: /tmp/awscliv2.zip
+          mode: '0660'
+
+      - name: Unarchive awscli archive to /tmp folder
+        ansible.builtin.unarchive:
+          src: /tmp/awscliv2.zip
+          dest: /tmp
+          remote_src: yes
+
+      - name: Install awscli
+        shell: exec /tmp/aws/install
+
+      - name: Create link to /usr/bin
+        file:
+           src: /usr/local/bin/aws
+           dest: /usr/bin/aws
+           state: link
+
+      - name: Ansible delete /tmp/awscliv2.zip
+        file:
+          path: /tmp/awscliv2.zip
+          state: absent
+
+      - name: Ansible delete /tmp/aws directory
+        file:
+          path: /tmp/aws
+          state: absent
+    rescue:
+      - name: Print when errors
+        debug:
+          msg: I caught an error
+    when: aws_cli.stat.exists == False
+
+  - name: check awscli version
+    shell: aws --version
+    register: aws_res
+
+  - debug:
+      var: aws_res.stdout_lines
+
+  - name: check awscli s3 bucket ls
+    shell: aws s3 ls s3://{{ bucket_for_check }}/
+    register: aws_check
+
+  - debug:
+      var: aws_check.stdout_lines

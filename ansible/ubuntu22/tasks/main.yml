@@ -1,0 +1,19 @@
+---
+- name: Print all available facts
+  debug:
+    var: ansible_facts
+
+- debug:
+    var: ansible_os_family
+
+- name: Install basic utils
+  include_tasks: "{{ item }}" 
+  with_items: 
+    - swap-file.yml
+    - general_utils.yml
+
+- name: Configure server
+  include_tasks: "{{ item }}" 
+  with_items: 
+    - docker.yml
+    - awscli.yml

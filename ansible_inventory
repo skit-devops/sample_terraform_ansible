@@ -1,0 +1,4 @@
+[all]
+
+[aws_terraform]
+aws-srv01-terra ansible_host=192.168.0.12 ansible_user=ec2_user ansible_ssh_private_key_file=~/.ssh/id_rsa

@@ -1,0 +1,6 @@
+galaxy_info:
+  author: Serhii Karashkevych
+  description: DevOps sample ansible code
+  company: self-employment
+
+  min_ansible_version: 2.1

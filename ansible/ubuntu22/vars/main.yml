@@ -1,0 +1,5 @@
+---
+
+bucket_for_check: "terraform-bucket"
+cicd_user: "jenkins"
+swap_size: '2G'

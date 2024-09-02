@@ -1,0 +1,41 @@
+---
+
+  - name: Gather package facts
+    package_facts:
+      manager: auto
+
+  - name: install general utils for monitoring, check hardware status ect...
+    apt:
+      name: "{{ packages }}"
+      state: latest
+    vars:
+      packages:
+      - mc
+      - ncdu
+      - nano
+      - jq
+      - wget
+      - telnet
+      - net-tools
+      - git
+      - htop
+      - bc
+      - zip
+      - unzip
+      - libpam-pwquality
+      - auditd
+      - debsums
+      - apt-show-versions
+      - mariadb-client
+      - ssl-cert-check
+    register: result
+
+  - debug:
+      var: result
+
+  - name: Start auditd.service and enabled it on the boot
+    service:
+      name: auditd
+      state: started
+      enabled: yes
+
